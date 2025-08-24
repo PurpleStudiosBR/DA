@@ -12,9 +12,9 @@ import br.com.purplemc.purpleesconde.listeners.PlayerInteractListener;
 import br.com.purplemc.purpleesconde.listeners.PlayerJoinListener;
 import br.com.purplemc.purpleesconde.listeners.PlayerQuitListener;
 import br.com.purplemc.purpleesconde.listeners.BlockListener;
-import br.com.purplemc.purpleesconde.listeners.InventoryListener;
+import br.com.purplemc.purpleesconde.listeners.PlayerListener;
 import br.com.purplemc.purpleesconde.listeners.SpectatorListener;
-import br.com.purplemc.purpleesconde.listeners.SetupVisualListener;
+import br.com.purplemc.purpleesconde.listeners.SetupListener;
 import br.com.purplemc.purpleesconde.managers.ArenaManager;
 import br.com.purplemc.purpleesconde.managers.GameManager;
 import br.com.purplemc.purpleesconde.managers.GUIManager;
@@ -61,15 +61,15 @@ public class PurpleEsconde extends JavaPlugin {
 
         Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PlayerQuitListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new PlayerInteractListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new PlayerInteractListener(this, guiManager), this);
         Bukkit.getPluginManager().registerEvents(new PlayerChatListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PlayerCommandListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PlayerDeathListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PlayerDamageListener(this), this);
         Bukkit.getPluginManager().registerEvents(new BlockListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new InventoryListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new PlayerListener(this), this);
         Bukkit.getPluginManager().registerEvents(new SpectatorListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new SetupVisualListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new SetupListener(this), this);
 
         if (Bukkit.getPluginManager().getPlugin("Citizens") != null) {
             Bukkit.getPluginManager().registerEvents(new CitizensNpcListener(this), this);

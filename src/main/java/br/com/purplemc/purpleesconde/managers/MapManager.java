@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MapManager {
 
@@ -20,7 +21,7 @@ public class MapManager {
 
     public MapManager(PurpleEsconde plugin) {
         this.plugin = plugin;
-        this.maps = new HashMap<String, GameMap>();
+        this.maps = new LinkedHashMap<String, GameMap>();
         this.playerFavorites = new HashMap<UUID, Set<String>>();
         this.lastMapSelection = new HashMap<UUID, LocalDate>();
         reloadMaps();
@@ -167,7 +168,6 @@ public class MapManager {
                         uuid = player.getUniqueId();
                     }
                 }
-
                 if (uuid == null) continue;
 
                 List<String> favorites = playersSection.getStringList(playerKey + ".favorites");
@@ -180,7 +180,8 @@ public class MapManager {
                     try {
                         LocalDate date = LocalDate.parse(lastSelection);
                         lastMapSelection.put(uuid, date);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         } catch (Exception e) {
@@ -223,7 +224,6 @@ public class MapManager {
     public GameMap getRandomFavoriteMap(Player player) {
         Set<String> favorites = playerFavorites.get(player.getUniqueId());
         if (favorites == null || favorites.isEmpty()) return null;
-
         List<GameMap> favoriteMaps = new ArrayList<GameMap>();
         for (String mapName : favorites) {
             GameMap map = maps.get(mapName);
@@ -231,14 +231,12 @@ public class MapManager {
                 favoriteMaps.add(map);
             }
         }
-
         if (favoriteMaps.isEmpty()) return null;
         return favoriteMaps.get(new Random().nextInt(favoriteMaps.size()));
     }
 
     public void addFavorite(Player player, String mapName) {
         if (!maps.containsKey(mapName)) return;
-
         Set<String> favorites = playerFavorites.get(player.getUniqueId());
         if (favorites == null) {
             favorites = new HashSet<String>();
@@ -306,6 +304,33 @@ public class MapManager {
         if (src == null) return;
         createMap(newName, src.getWorld(), src.getWaitingLobby(), src.getSeekerSpawn(),
                 new ArrayList<Location>(src.getHiderSpawns()), src.getBarrierMin(), src.getBarrierMax());
+    }
+
+    public List<GameMap> cloneArena(String mapName, int quantity) {
+        GameMap original = getMap(mapName);
+        if (original == null) return Collections.emptyList();
+        List<GameMap> created = new ArrayList<GameMap>();
+        String base = mapName;
+        int nextNum = 1;
+        Set<String> existing = new HashSet<String>(maps.keySet());
+        for (int i = 0; i < quantity; i++) {
+            String nextName;
+            while (true) {
+                nextName = base + "_clone" + nextNum;
+                nextNum++;
+                if (!existing.contains(nextName)) break;
+            }
+            createMap(nextName, original.getWorld(), original.getWaitingLobby(), original.getSeekerSpawn(),
+                    new ArrayList<Location>(original.getHiderSpawns()), original.getBarrierMin(), original.getBarrierMax());
+            GameMap clone = getMap(nextName);
+            if (clone != null) {
+                created.add(clone);
+                existing.add(nextName);
+            }
+        }
+        plugin.getConfigManager().saveConfig(plugin.getConfigManager().getMaps(), "maps.yml");
+        reloadMaps();
+        return created;
     }
 
     private void saveLocationToConfig(Location location, String path) {

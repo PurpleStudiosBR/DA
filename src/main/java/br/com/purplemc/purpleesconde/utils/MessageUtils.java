@@ -13,18 +13,26 @@ public class MessageUtils {
         player.sendMessage(applyPlaceholders(player, message));
     }
 
-    public static String formatTime(int seconds) {
-        int minutes = seconds / 60;
-        int remainingSeconds = seconds % 60;
-        return String.format("%02d:%02d", minutes, remainingSeconds);
+    public static void sendTitle(Player player, String title, String subtitle) {
+        try {
+            player.sendTitle(title, subtitle);
+        } catch (Exception e) {
+            if (title != null) player.sendMessage(title);
+            if (subtitle != null) player.sendMessage(subtitle);
+        }
     }
 
     public static void broadcastToArena(Arena arena, String message) {
         if (message == null || message.isEmpty()) return;
-
         for (Player player : arena.getPlayers()) {
             player.sendMessage(applyPlaceholders(player, message));
         }
+    }
+
+    public static String formatTime(int seconds) {
+        int minutes = seconds / 60;
+        int remainingSeconds = seconds % 60;
+        return String.format("%02d:%02d", minutes, remainingSeconds);
     }
 
     public static String colorize(String text) {
@@ -33,6 +41,14 @@ public class MessageUtils {
 
     public static String stripColor(String text) {
         return text.replaceAll("§[0-9a-fk-or]", "");
+    }
+
+    public static String replaceVariables(String message, String... replacements) {
+        String result = message;
+        for (int i = 0; i < replacements.length - 1; i += 2) {
+            result = result.replace(replacements[i], replacements[i + 1]);
+        }
+        return result;
     }
 
     public static String applyPlaceholders(Player player, String message) {

@@ -30,7 +30,12 @@ public class GameManager {
             public void run() {
                 for (Arena arena : plugin.getArenaManager().getArenas()) {
                     if (arena.getPlayers().isEmpty() && arena.getGame() == null) {
-                        plugin.getArenaManager().removeArena(arena.getId());
+                        Bukkit.getScheduler().runTask(plugin, new Runnable() {
+                            @Override
+                            public void run() {
+                                plugin.getArenaManager().removeArena(arena.getId());
+                            }
+                        });
                     }
                 }
             }
@@ -47,6 +52,7 @@ public class GameManager {
     public void endGame(Arena arena) {
         Game game = activeGames.remove(arena);
         if (game != null) {
+            plugin.getLogger().info("Jogo finalizado na arena: " + arena.getId());
         }
     }
 
@@ -81,16 +87,11 @@ public class GameManager {
             return;
         }
 
-        Arena availableArena = null;
-        for (Arena arena : plugin.getArenaManager().getArenas()) {
-            if (arena.getGameMap() != null &&
-                    arena.getGameMap().getName().equals(map.getName()) &&
-                    !arena.isFull() &&
-                    arena.getState() != ArenaState.INGAME) {
-                availableArena = arena;
-                break;
-            }
+        if (plugin.getArenaManager().isPlayerInArena(player)) {
+            plugin.getArenaManager().removePlayerFromArena(player);
         }
+
+        Arena availableArena = plugin.getArenaManager().getAvailableArena(mapName);
 
         if (availableArena == null) {
             availableArena = plugin.getArenaManager().createArena(map);
@@ -104,10 +105,34 @@ public class GameManager {
         player.sendMessage("§aVocê entrou na arena " + mapName + "!");
     }
 
-    public Arena forceCreateArenaClone(String mapName) {
-        GameMap gameMap = plugin.getMapManager().getMap(mapName);
-        if (gameMap == null) return null;
-        String id = mapName + "_clone_" + System.currentTimeMillis();
-        return plugin.getArenaManager().createArenaWithId(gameMap, id);
+    public void joinRandomGame(Player player) {
+        Arena randomArena = plugin.getArenaManager().getRandomArena();
+        if (randomArena == null) {
+            player.sendMessage("§cNenhuma arena disponível no momento.");
+            return;
+        }
+
+        if (plugin.getArenaManager().isPlayerInArena(player)) {
+            plugin.getArenaManager().removePlayerFromArena(player);
+        }
+
+        plugin.getArenaManager().addPlayerToArena(player, randomArena);
+        player.sendMessage("§aVocê entrou em uma partida aleatória!");
+    }
+
+    public int getTotalPlayersInGame() {
+        int total = 0;
+        for (Arena arena : plugin.getArenaManager().getArenas()) {
+            if (arena.getState() == ArenaState.WAITING ||
+                    arena.getState() == ArenaState.STARTING ||
+                    arena.getState() == ArenaState.INGAME) {
+                total += arena.getPlayers().size();
+            }
+        }
+        return total;
+    }
+
+    public int getTotalActiveGames() {
+        return activeGames.size();
     }
 }

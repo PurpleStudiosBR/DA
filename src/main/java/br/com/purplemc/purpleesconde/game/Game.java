@@ -94,20 +94,14 @@ public class Game {
 
     private void equipSeeker(Player player) {
         player.getInventory().setArmorContents(ItemUtils.getSeekerArmor());
-
-        ItemStack weapon = new ItemStack(Material.STICK);
-        weapon.addEnchantment(Enchantment.FIRE_ASPECT, 1);
-        weapon.addEnchantment(Enchantment.KNOCKBACK, 1);
-        weapon.addEnchantment(Enchantment.DAMAGE_ALL, 2);
-
-        player.getInventory().setItem(0, weapon);
-        player.getInventory().setItem(1, new ItemStack(Material.FIREWORK, 5));
+        player.getInventory().setItem(0, ItemUtils.getSeekerWeapon());
+        player.getInventory().setItem(1, ItemUtils.getFirework());
     }
 
     private void equipHider(Player player) {
         player.getInventory().setArmorContents(ItemUtils.getHiderArmor());
-        player.getInventory().setItem(0, new ItemStack(Material.STICK));
-        player.getInventory().setItem(1, new ItemStack(Material.FIREWORK, 5));
+        player.getInventory().setItem(0, ItemUtils.getHiderWeapon());
+        player.getInventory().setItem(1, ItemUtils.getFirework());
     }
 
     private void startHidingPhase() {

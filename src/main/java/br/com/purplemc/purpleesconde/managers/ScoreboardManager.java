@@ -8,45 +8,83 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.*;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class ScoreboardManager {
 
     private final PurpleEsconde plugin;
+    private final Map<Player, Scoreboard> playerScoreboards;
+    private final Set<String> usedBlankLines = new HashSet<>();
 
     public ScoreboardManager(PurpleEsconde plugin) {
         this.plugin = plugin;
+        this.playerScoreboards = new HashMap<>();
     }
 
     public void setLobbyScoreboard(Player player) {
         List<String> lines = plugin.getConfigManager().getScoreboardLines("lobby");
         String title = plugin.getConfigManager().getScoreboardTitle("lobby");
-        setScoreboard(player, title, lines
-                .stream()
-                .map(line -> replaceLobbyPlaceholders(player, line))
-                .toArray(String[]::new), player);
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        Objective obj = scoreboard.registerNewObjective("lobby", "dummy");
+        obj.setDisplayName(colorize(title != null ? title : "§aLobby"));
+        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+        int score = lines.size();
+        usedBlankLines.clear();
+        for (String line : lines) {
+            String processedLine = colorize(applyAllPlaceholders(player, replaceLobbyPlaceholders(player, line)));
+            processedLine = fixBlankLine(processedLine, score);
+            obj.getScore(processedLine).setScore(score--);
+        }
+        player.setScoreboard(scoreboard);
+        playerScoreboards.put(player, scoreboard);
     }
 
     public void setWaitingLobbyScoreboard(Player player, Arena arena) {
         List<String> lines = plugin.getConfigManager().getScoreboardLines("waiting");
         String title = plugin.getConfigManager().getScoreboardTitle("waiting");
-        setScoreboard(player, title, lines
-                .stream()
-                .map(line -> replaceWaitingPlaceholders(player, arena, line))
-                .toArray(String[]::new), player);
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        Objective obj = scoreboard.registerNewObjective("waiting", "dummy");
+        obj.setDisplayName(colorize(title != null ? title : "§aWaiting"));
+        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+        int score = lines.size();
+        usedBlankLines.clear();
+        for (String line : lines) {
+            String processedLine = colorize(applyAllPlaceholders(player, replaceWaitingPlaceholders(player, arena, line)));
+            processedLine = fixBlankLine(processedLine, score);
+            obj.getScore(processedLine).setScore(score--);
+        }
+        player.setScoreboard(scoreboard);
+        playerScoreboards.put(player, scoreboard);
     }
 
     public void setGameScoreboard(Player player, Game game) {
         List<String> lines = plugin.getConfigManager().getScoreboardLines("game");
         String title = plugin.getConfigManager().getScoreboardTitle("game");
-        setScoreboard(player, title, lines
-                .stream()
-                .map(line -> replaceGamePlaceholders(player, game, line))
-                .toArray(String[]::new), player);
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        Objective obj = scoreboard.registerNewObjective("game", "dummy");
+        obj.setDisplayName(colorize(title != null ? title : "§aGame"));
+        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+        int score = lines.size();
+        usedBlankLines.clear();
+        for (String line : lines) {
+            String processedLine = colorize(applyAllPlaceholders(player, replaceGamePlaceholders(player, game, line)));
+            processedLine = fixBlankLine(processedLine, score);
+            obj.getScore(processedLine).setScore(score--);
+        }
+        player.setScoreboard(scoreboard);
+        playerScoreboards.put(player, scoreboard);
     }
 
     public void removePlayerScoreboard(Player player) {
-        player.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
+        playerScoreboards.remove(player);
+        player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
     }
 
     public void updateWaitingScoreboard(Arena arena) {
@@ -55,33 +93,10 @@ public class ScoreboardManager {
         }
     }
 
-    private void setScoreboard(Player player, String title, String[] lines, Player placeholderPlayer) {
-        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-        Objective obj = scoreboard.registerNewObjective("pe", "dummy");
-        obj.setDisplayName(fixLength(applyAllPlaceholders(placeholderPlayer, title), 32));
-        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
-
-        int score = lines.length;
-        for (String line : lines) {
-            String processedLine = applyAllPlaceholders(placeholderPlayer, line.replace("&", "§"));
-            if (processedLine.isEmpty()) processedLine = " ";
-            processedLine = fixLength(processedLine, 40);
-            if (obj.getScoreboard().getEntries().contains(processedLine)) {
-                processedLine = processedLine + getUniqueSuffix(score);
-                processedLine = fixLength(processedLine, 40);
-            }
-            obj.getScore(processedLine).setScore(score--);
+    public void updateGameScoreboard(Game game) {
+        for (Player player : game.getArena().getPlayers()) {
+            setGameScoreboard(player, game);
         }
-        player.setScoreboard(scoreboard);
-    }
-
-    private String getUniqueSuffix(int score) {
-        return "§" + Integer.toHexString(score % 16);
-    }
-
-    private String fixLength(String s, int max) {
-        if (s == null) return "";
-        return s.length() > max ? s.substring(0, max) : s;
     }
 
     private String replaceLobbyPlaceholders(Player player, String line) {
@@ -108,7 +123,7 @@ public class ScoreboardManager {
         if (arena.getPlayers().size() < plugin.getConfigManager().getMinPlayersToStart()) {
             status = "§fStatus: §eEsperando...";
         } else if (arena.getState().name().equalsIgnoreCase("STARTING")) {
-            status = "§fStatus: §eComeçando em " + arena.getCountdown() + "s";
+            status = "§fStatus: §aInicia em §f" + arena.getCountdown() + "s";
         } else {
             status = "§fStatus: §ePreparando...";
         }
@@ -137,10 +152,28 @@ public class ScoreboardManager {
 
     private String applyAllPlaceholders(Player player, String text) {
         String replaced = text;
-        replaced = replaceLobbyPlaceholders(player, replaced);
         if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             replaced = PlaceholderAPI.setPlaceholders(player, replaced);
         }
         return replaced;
+    }
+
+    private String colorize(String text) {
+        if (text == null) return "";
+        return text.replace("&", "§");
+    }
+
+    private String fixBlankLine(String line, int score) {
+        if (line == null) line = "";
+        String trimmed = line.trim();
+        if (trimmed.isEmpty()) {
+            String unique = "§" + score + " ";
+            while (usedBlankLines.contains(unique)) {
+                unique = unique + " ";
+            }
+            usedBlankLines.add(unique);
+            return unique;
+        }
+        return line;
     }
 }

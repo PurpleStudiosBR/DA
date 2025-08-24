@@ -72,4 +72,16 @@ public class DatabaseManager {
     public int getGames(UUID uuid) {
         return playerConfig.getInt("players." + uuid + ".games", 0);
     }
+
+    public int getWins(Player player) {
+        return getWins(player.getUniqueId());
+    }
+
+    public int getLosses(Player player) {
+        return getLosses(player.getUniqueId());
+    }
+
+    public int getGamesPlayed(Player player) {
+        return getGames(player.getUniqueId());
+    }
 }

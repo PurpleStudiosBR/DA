@@ -13,25 +13,30 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class SpectatorManager {
 
     private final PurpleEsconde plugin;
     private final Set<Player> spectators;
+    private final Map<Player, Arena> spectatorArenas;
 
     public SpectatorManager(PurpleEsconde plugin) {
         this.plugin = plugin;
         this.spectators = new HashSet<>();
+        this.spectatorArenas = new HashMap<>();
     }
 
     public void setSpectator(Player player, Arena arena) {
         if (spectators.contains(player)) {
+            spectatorArenas.put(player, arena);
             return;
         }
-
         spectators.add(player);
+        spectatorArenas.put(player, arena);
 
         player.setGameMode(GameMode.CREATIVE);
         player.setAllowFlight(true);
@@ -50,8 +55,8 @@ public class SpectatorManager {
         if (!spectators.contains(player)) {
             return;
         }
-
         spectators.remove(player);
+        Arena arena = spectatorArenas.remove(player);
 
         player.setGameMode(GameMode.SURVIVAL);
         player.setAllowFlight(false);
@@ -73,7 +78,6 @@ public class SpectatorManager {
                 player.hidePlayer(spectator);
             }
         }
-
         for (Player otherSpectator : spectators) {
             if (!otherSpectator.equals(spectator)) {
                 otherSpectator.showPlayer(spectator);
@@ -94,12 +98,10 @@ public class SpectatorManager {
             scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
             player.setScoreboard(scoreboard);
         }
-
         Team spectatorTeam = scoreboard.getTeam("spectators");
         if (spectatorTeam == null) {
             spectatorTeam = scoreboard.registerNewTeam("spectators");
         }
-
         spectatorTeam.setCanSeeFriendlyInvisibles(false);
         spectatorTeam.addEntry(player.getName());
     }
@@ -116,7 +118,6 @@ public class SpectatorManager {
 
     private void giveSpectatorItems(Player player) {
         player.getInventory().clear();
-
         ItemStack backToLobby = ItemUtils.createItem(Material.BED, "§cVoltar ao Lobby", null);
         ItemStack playAgain = ItemUtils.createItem(Material.PAPER, "§aJogar Novamente", null);
         ItemStack teleportMenu = ItemUtils.createItem(Material.COMPASS, "§bTeleportar para Jogadores", null);
@@ -132,6 +133,10 @@ public class SpectatorManager {
         return spectators.contains(player);
     }
 
+    public Arena getSpectatorArena(Player player) {
+        return spectatorArenas.get(player);
+    }
+
     public Set<Player> getSpectators() {
         return new HashSet<>(spectators);
     }
@@ -140,11 +145,9 @@ public class SpectatorManager {
         if (!spectators.contains(player)) {
             return;
         }
-
         String spectatorMessage = plugin.getConfigManager().getMessage("spectator.chat-format")
                 .replace("{player}", player.getName())
                 .replace("{message}", message);
-
         for (Player spectator : spectators) {
             spectator.sendMessage(spectatorMessage);
         }

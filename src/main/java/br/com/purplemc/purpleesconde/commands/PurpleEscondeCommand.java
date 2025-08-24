@@ -1,6 +1,7 @@
 package br.com.purplemc.purpleesconde.commands;
 
 import br.com.purplemc.purpleesconde.PurpleEsconde;
+import br.com.purplemc.purpleesconde.map.GameMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -46,6 +47,7 @@ public class PurpleEscondeCommand implements CommandExecutor {
         if (sub.equals("statusmap")) return handleStatusMap(player);
         if (sub.equals("reloadmaps")) return handleReloadMaps(player);
         if (sub.equals("clonemap")) return handleCloneMap(player, args);
+        if (sub.equals("clonearena")) return handleCloneArena(player, args);
         sendHelp(player);
         return true;
     }
@@ -64,6 +66,7 @@ public class PurpleEscondeCommand implements CommandExecutor {
         player.sendMessage("§e/purpleesconde cancelmap §7- Cancela o setup do mapa atual");
         player.sendMessage("§e/purpleesconde reloadmaps §7- Recarrega todos os mapas do plugin");
         player.sendMessage("§e/purpleesconde clonemap <original> <novo> §7- Clona um mapa para novo nome");
+        player.sendMessage("§e/purpleesconde clonearena <mapa> <quantidade> §7- Aumenta a quantidade de salas para o mapa");
     }
 
     private boolean handleBuild(Player player) {
@@ -283,6 +286,38 @@ public class PurpleEscondeCommand implements CommandExecutor {
             player.sendMessage("§cErro ao clonar mapa: " + e.getMessage());
             plugin.getLogger().severe("Erro ao clonar mapa: " + e.getMessage());
         }
+        return true;
+    }
+
+    private boolean handleCloneArena(Player player, String[] args) {
+        if (!player.hasPermission("purpleesconde.admin")) {
+            player.sendMessage("§cSem permissão.");
+            return true;
+        }
+        if (args.length < 3) {
+            player.sendMessage("§cUso: /purpleesconde clonearena <mapa> <quantidade>");
+            return true;
+        }
+        String mapName = args[1];
+        int quantity;
+        try {
+            quantity = Integer.parseInt(args[2]);
+            if (quantity <= 0 || quantity > 50) {
+                player.sendMessage("§cQuantidade deve ser entre 1 e 50!");
+                return true;
+            }
+        } catch (NumberFormatException e) {
+            player.sendMessage("§cQuantidade deve ser um número!");
+            return true;
+        }
+
+        if (plugin.getMapManager().getMap(mapName) == null) {
+            player.sendMessage("§cMapa não encontrado: " + mapName);
+            return true;
+        }
+
+        plugin.getArenaManager().addArenas(mapName, quantity);
+        player.sendMessage("§aQuantidade de salas para o mapa §e" + mapName + " §aatualizada para §e" + quantity + "§a!");
         return true;
     }
 

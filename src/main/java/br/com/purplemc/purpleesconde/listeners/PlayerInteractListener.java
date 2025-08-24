@@ -17,9 +17,9 @@ public class PlayerInteractListener implements Listener {
     private final PurpleEsconde plugin;
     private final GUIManager guiManager;
 
-    public PlayerInteractListener(PurpleEsconde plugin) {
+    public PlayerInteractListener(PurpleEsconde plugin, GUIManager guiManager) {
         this.plugin = plugin;
-        this.guiManager = new GUIManager(plugin);
+        this.guiManager = guiManager;
     }
 
     @EventHandler
@@ -29,43 +29,31 @@ public class PlayerInteractListener implements Listener {
 
         if (item == null || item.getType() == Material.AIR) return;
 
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+
+        event.setCancelled(true);
+
         if (item.getType() == Material.ENDER_PEARL) {
-            event.setCancelled(true);
-            Arena arena = plugin.getArenaManager().getRandomArena();
-            if (arena != null) {
-                plugin.getArenaManager().addPlayerToArena(player, arena);
-            } else {
-                player.sendMessage(plugin.getConfigManager().getMessage("game.no-arenas"));
-            }
-        }
-
-        if (item.getType() == Material.SIGN) {
-            event.setCancelled(true);
+            guiManager.openMainMenu(player);
+        } else if (item.getType() == Material.SIGN) {
             guiManager.openMapSelector(player);
-        }
-
-        if (item.getType() == Material.BED) {
-            if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-                event.setCancelled(true);
-
-                if (plugin.getArenaManager().isPlayerInArena(player)) {
-                    plugin.getArenaManager().removePlayerFromArena(player);
-                } else {
-                    plugin.getArenaManager().sendToMainLobby(player);
-                }
+        } else if (item.getType() == Material.BED) {
+            if (plugin.getArenaManager().isPlayerInArena(player)) {
+                plugin.getArenaManager().removePlayerFromArena(player);
+            } else {
+                plugin.getArenaManager().sendToMainLobby(player);
             }
-        }
-
-        if (item.getType() == Material.FIREWORK) {
+        } else if (item.getType() == Material.FIREWORK) {
             Arena arena = plugin.getArenaManager().getPlayerArena(player);
             if (arena != null && arena.getGame() != null) {
                 Game game = arena.getGame();
                 if (game.isHider(player) || game.isSeeker(player)) {
                     event.setCancelled(false);
                 }
-            } else {
-                event.setCancelled(true);
             }
+        } else {
+            event.setCancelled(false);
         }
     }
 }

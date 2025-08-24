@@ -17,6 +17,6 @@ public class CitizensNpcListener implements Listener {
     @EventHandler
     public void onNpcClick(NPCRightClickEvent event) {
         Player player = event.getClicker();
-        plugin.getGUIManager().openBedWarsMenu(player);
+        plugin.getGUIManager().openMainMenu(player);
     }
 }

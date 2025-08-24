@@ -13,17 +13,14 @@ import org.bukkit.inventory.ItemStack;
 public class InventoryListener implements Listener {
 
     private final PurpleEsconde plugin;
-    private final GUIManager guiManager;
 
     public InventoryListener(PurpleEsconde plugin) {
         this.plugin = plugin;
-        this.guiManager = new GUIManager(plugin);
     }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
-
         Player player = (Player) event.getWhoClicked();
 
         if (plugin.getArenaManager().isPlayerInArena(player)) {
@@ -34,90 +31,79 @@ public class InventoryListener implements Listener {
             }
         }
 
-        if (guiManager.isMapSelector(event.getInventory())) {
-            event.setCancelled(true);
-            handleMapSelectorClick(player, event);
-        } else if (guiManager.isBedWarsMenu(event.getInventory())) {
-            event.setCancelled(true);
-            handleBedWarsMenuClick(player, event);
-        } else if (guiManager.isGameMapInfo(event.getInventory())) {
-            event.setCancelled(true);
-            handleGameMapInfoClick(player, event);
-        }
-    }
+        String title = event.getView().getTitle();
 
-    private void handleMapSelectorClick(Player player, InventoryClickEvent event) {
+        boolean isMapSelector = title.equals("§8Selecionar mapa - Modo Solo");
+        boolean isMainMenu = title.equals("§8Esconde Esconde");
+        boolean isGameMapInfo = title.contains(" - Modo Padrão") && !title.startsWith("§8Selecionar");
+
+        if (!(isMapSelector || isMainMenu || isGameMapInfo)) return;
+        event.setCancelled(true);
+
         ItemStack item = event.getCurrentItem();
         if (item == null || item.getType() == Material.AIR) return;
 
-        if (item.getType() == Material.MAP) {
-            String mapName = item.getItemMeta().getDisplayName().substring(2);
+        GUIManager guiManager = plugin.getGUIManager();
 
-            if (event.getClick().isRightClick()) {
-                if (player.hasPermission("purpleesconde.favorite")) {
-                    if (plugin.getMapManager().isPlayerFavorite(player, mapName)) {
-                        plugin.getMapManager().removeFavorite(player, mapName);
-                    } else {
-                        plugin.getMapManager().addFavorite(player, mapName);
+        if (isMapSelector) {
+            if (item.getType() == Material.MAP || item.getType() == Material.EMPTY_MAP) {
+                String mapName = item.getItemMeta() != null && item.getItemMeta().hasDisplayName() ? item.getItemMeta().getDisplayName().replace("§e", "") : null;
+                if (event.getClick().isRightClick()) {
+                    if (player.hasPermission("purpleesconde.favorite")) {
+                        if (plugin.getMapManager().isPlayerFavorite(player, mapName)) {
+                            plugin.getMapManager().removeFavorite(player, mapName);
+                        } else {
+                            plugin.getMapManager().addFavorite(player, mapName);
+                        }
+                        guiManager.openMapSelector(player);
                     }
-                    guiManager.openMapSelector(player);
-                }
-            } else {
-                if (plugin.getMapManager().canPlayerSelectMap(player)) {
-                    Arena arena = plugin.getArenaManager().getAvailableArena(mapName);
-                    if (arena == null) {
-                        arena = plugin.getArenaManager().createArena(plugin.getMapManager().getMap(mapName));
-                    }
-                    plugin.getArenaManager().addPlayerToArena(player, arena);
-                    plugin.getMapManager().markMapSelected(player);
                 } else {
-                    player.sendMessage(plugin.getConfigManager().getMessage("map.daily-limit"));
+                    if (plugin.getMapManager().canPlayerSelectMap(player)) {
+                        Arena arena = plugin.getArenaManager().getAvailableArena(mapName);
+                        if (arena == null) {
+                            arena = plugin.getArenaManager().createArena(plugin.getMapManager().getMap(mapName));
+                        }
+                        plugin.getArenaManager().addPlayerToArena(player, arena);
+                        plugin.getMapManager().markMapSelected(player);
+                    } else {
+                        player.sendMessage(plugin.getConfigManager().getMessage("map.daily-limit"));
+                    }
+                    player.closeInventory();
                 }
-                player.closeInventory();
+            } else if (item.getType() == Material.DIAMOND) {
+                Arena arena = plugin.getArenaManager().getRandomArena();
+                if (arena == null) {
+                    arena = plugin.getArenaManager().createArena(plugin.getMapManager().getRandomFavoriteMap(player));
+                }
+                if (arena != null) {
+                    plugin.getArenaManager().addPlayerToArena(player, arena);
+                    player.closeInventory();
+                }
+            } else if (item.getType() == Material.ARROW) {
+                guiManager.openMainMenu(player);
             }
-        } else if (item.getType() == Material.DIAMOND) {
-            Arena arena = plugin.getArenaManager().getRandomArena();
-            if (arena == null) {
-                arena = plugin.getArenaManager().createArena(plugin.getMapManager().getRandomFavoriteMap(player));
+        } else if (isMainMenu) {
+            if (item.getType() == Material.ENDER_PEARL) {
+                Arena arena = plugin.getArenaManager().getRandomArena();
+                if (arena != null) {
+                    plugin.getArenaManager().addPlayerToArena(player, arena);
+                    player.closeInventory();
+                }
+            } else if (item.getType() == Material.SIGN) {
+                guiManager.openMapSelector(player);
             }
-            if (arena != null) {
+        } else if (isGameMapInfo) {
+            if (item.getType() == Material.MAP) {
+                String mapName = item.getItemMeta().getDisplayName().replace("§e", "");
+                Arena arena = plugin.getArenaManager().getAvailableArena(mapName);
+                if (arena == null) {
+                    arena = plugin.getArenaManager().createArena(plugin.getMapManager().getMap(mapName));
+                }
                 plugin.getArenaManager().addPlayerToArena(player, arena);
                 player.closeInventory();
+            } else if (item.getType() == Material.ARROW) {
+                guiManager.openMapSelector(player);
             }
-        } else if (item.getType() == Material.ARROW) {
-            guiManager.openBedWarsMenu(player);
-        }
-    }
-
-    private void handleBedWarsMenuClick(Player player, InventoryClickEvent event) {
-        ItemStack item = event.getCurrentItem();
-        if (item == null) return;
-
-        if (item.getType() == Material.ENDER_PEARL) {
-            Arena arena = plugin.getArenaManager().getRandomArena();
-            if (arena != null) {
-                plugin.getArenaManager().addPlayerToArena(player, arena);
-                player.closeInventory();
-            }
-        } else if (item.getType() == Material.SIGN) {
-            guiManager.openMapSelector(player);
-        }
-    }
-
-    private void handleGameMapInfoClick(Player player, InventoryClickEvent event) {
-        ItemStack item = event.getCurrentItem();
-        if (item == null) return;
-
-        if (item.getType() == Material.MAP) {
-            String mapName = item.getItemMeta().getDisplayName().substring(2);
-            Arena arena = plugin.getArenaManager().getAvailableArena(mapName);
-            if (arena == null) {
-                arena = plugin.getArenaManager().createArena(plugin.getMapManager().getMap(mapName));
-            }
-            plugin.getArenaManager().addPlayerToArena(player, arena);
-            player.closeInventory();
-        } else if (item.getType() == Material.ARROW) {
-            guiManager.openMapSelector(player);
         }
     }
 }
