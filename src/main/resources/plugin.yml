@@ -5,7 +5,7 @@ author: matrixdev
 description: Minigame de Esconde-Esconde
 api-version: 1.8
 depend: []
-softdepend: [PlaceholderAPI, Citizens, Multiverse-Core, WorldEdit]
+softdepend: [PlaceholderAPI, Citizens, Multiverse-Core, WorldEdit, Vault]
 
 commands:
   purpleesconde:

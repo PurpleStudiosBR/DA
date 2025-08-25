@@ -23,6 +23,7 @@ import br.com.purplemc.purpleesconde.managers.MapManager;
 import br.com.purplemc.purpleesconde.managers.ScoreboardManager;
 import br.com.purplemc.purpleesconde.managers.SpectatorManager;
 import br.com.purplemc.purpleesconde.utils.ConfigManager;
+import br.com.purplemc.purpleesconde.utils.MessageUtils;
 import br.com.purplemc.purpleesconde.placeholders.EscondePlaceholder;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -45,15 +46,17 @@ public class PurpleEsconde extends JavaPlugin {
     public void onEnable() {
         instance = this;
         configManager = new ConfigManager(this);
+        mapManager = new MapManager(this);
         arenaManager = new ArenaManager(this);
         gameManager = new GameManager(this);
-        mapManager = new MapManager(this);
         guiManager = new GUIManager(this);
         spectatorManager = new SpectatorManager(this);
         scoreboardManager = new ScoreboardManager(this);
         levelManager = new LevelManager(this);
         databaseManager = new DatabaseManager(this);
         api = new PurpleEscondeAPI(this);
+
+        arenaManager.loadArenas();
 
         getCommand("purpleesconde").setExecutor(new PurpleEscondeCommand(this));
         getCommand("ed").setExecutor(new PurpleEscondeCommand(this));
@@ -80,6 +83,10 @@ public class PurpleEsconde extends JavaPlugin {
             new EscondePlaceholder(this).register();
             getLogger().info("PlaceholderAPI integration enabled!");
         }
+
+        // Registrar suporte a placeholders de outros plugins
+        // Exemplo:
+        // MessageUtils.registerExternalPlaceholderProvider((player, message) -> SeuOutroPluginAPI.parsePlaceholders(player, message));
 
         getLogger().info("PurpleEsconde habilitado com sucesso!");
     }

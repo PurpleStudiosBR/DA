@@ -20,17 +20,34 @@ public class ArenaManager {
 
     public ArenaManager(PurpleEsconde plugin) {
         this.plugin = plugin;
-        this.mapArenas = new ConcurrentHashMap<String, List<Arena>>();
-        this.playerArenas = new ConcurrentHashMap<Player, Arena>();
-        this.mapArenaAmount = new ConcurrentHashMap<String, Integer>();
-        loadArenas();
+        this.mapArenas = new ConcurrentHashMap<>();
+        this.playerArenas = new ConcurrentHashMap<>();
+        this.mapArenaAmount = new ConcurrentHashMap<>();
+        loadArenaAmountsFromConfig();
     }
 
-    private void loadArenas() {
+    private void loadArenaAmountsFromConfig() {
+        if (plugin.getConfigManager().getMaps().contains("arena-amounts")) {
+            for (String mapName : plugin.getConfigManager().getMaps().getConfigurationSection("arena-amounts").getKeys(false)) {
+                int amount = plugin.getConfigManager().getMaps().getInt("arena-amounts." + mapName, 1);
+                mapArenaAmount.put(mapName, amount);
+            }
+        }
+    }
+
+    private void saveArenaAmountsToConfig() {
+        for (Map.Entry<String, Integer> entry : mapArenaAmount.entrySet()) {
+            plugin.getConfigManager().getMaps().set("arena-amounts." + entry.getKey(), entry.getValue());
+        }
+        plugin.getConfigManager().saveConfig(plugin.getConfigManager().getMaps(), "maps.yml");
+    }
+
+    public void loadArenas() {
         mapArenas.clear();
+        if (plugin.getMapManager() == null) return;
         for (GameMap map : plugin.getMapManager().getMaps()) {
             int amount = mapArenaAmount.getOrDefault(map.getName(), 1);
-            List<Arena> arenas = new ArrayList<Arena>();
+            List<Arena> arenas = new ArrayList<>();
             for (int i = 1; i <= amount; i++) {
                 String arenaId = map.getName() + "_" + i;
                 arenas.add(new Arena(plugin, arenaId, map));
@@ -41,10 +58,11 @@ public class ArenaManager {
 
     public void addArenas(String mapName, int quantity) {
         mapArenaAmount.put(mapName, quantity);
+        saveArenaAmountsToConfig();
         GameMap gameMap = plugin.getMapManager().getMap(mapName);
         if (gameMap != null) {
             mapArenas.remove(mapName);
-            List<Arena> arenas = new ArrayList<Arena>();
+            List<Arena> arenas = new ArrayList<>();
             for (int i = 1; i <= quantity; i++) {
                 String arenaId = mapName + "_" + i;
                 arenas.add(new Arena(plugin, arenaId, gameMap));
@@ -69,7 +87,7 @@ public class ArenaManager {
         GameMap map = plugin.getMapManager().getMap(mapName);
         if (map != null) {
             Arena arena = new Arena(plugin, mapName + "_" + (getArenasByMap(mapName).size() + 1), map);
-            mapArenas.computeIfAbsent(mapName, k -> new ArrayList<Arena>()).add(arena);
+            mapArenas.computeIfAbsent(mapName, k -> new ArrayList<>()).add(arena);
             return arena;
         }
         return null;
@@ -77,7 +95,7 @@ public class ArenaManager {
 
     public Arena createArena(GameMap map) {
         String mapName = map.getName();
-        List<Arena> arenas = mapArenas.computeIfAbsent(mapName, k -> new ArrayList<Arena>());
+        List<Arena> arenas = mapArenas.computeIfAbsent(mapName, k -> new ArrayList<>());
         String arenaId = mapName + "_" + (arenas.size() + 1);
         Arena arena = new Arena(plugin, arenaId, map);
         arenas.add(arena);
@@ -92,7 +110,6 @@ public class ArenaManager {
         arena.addPlayer(player);
         player.setFlying(false);
         player.setAllowFlight(false);
-
         if (plugin.getScoreboardManager() != null) {
             plugin.getScoreboardManager().setWaitingLobbyScoreboard(player, arena);
         }
@@ -102,9 +119,8 @@ public class ArenaManager {
         Arena arena = playerArenas.remove(player);
         if (arena != null) {
             arena.removePlayer(player);
-
             if (plugin.getScoreboardManager() != null) {
-                plugin.getScoreboardManager().removePlayerScoreboard(player);
+                plugin.getScoreboardManager().setLobbyScoreboard(player);
             }
         }
     }
@@ -124,7 +140,7 @@ public class ArenaManager {
     }
 
     public List<Arena> getArenas() {
-        List<Arena> all = new ArrayList<Arena>();
+        List<Arena> all = new ArrayList<>();
         for (List<Arena> list : mapArenas.values()) {
             all.addAll(list);
         }
@@ -136,7 +152,7 @@ public class ArenaManager {
     }
 
     public Arena getRandomArena() {
-        List<Arena> available = new ArrayList<Arena>();
+        List<Arena> available = new ArrayList<>();
         for (List<Arena> arenas : mapArenas.values()) {
             for (Arena arena : arenas) {
                 if (arena.getState() == ArenaState.WAITING && !arena.isFull()) {
@@ -165,11 +181,9 @@ public class ArenaManager {
             player.setFoodLevel(20);
             player.setFlying(false);
             player.setAllowFlight(false);
-
             if (plugin.getScoreboardManager() != null) {
-                plugin.getScoreboardManager().removePlayerScoreboard(player);
+                plugin.getScoreboardManager().setLobbyScoreboard(player);
             }
-
             if (plugin.getConfigManager().giveLobbyItems()) {
                 plugin.getConfigManager().giveLobbyItems(player);
             }

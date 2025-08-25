@@ -29,8 +29,8 @@ public class Arena {
         this.plugin = plugin;
         this.id = id;
         this.gameMap = gameMap;
-        this.players = new HashSet<Player>();
-        this.seekerChances = new HashMap<Player, Double>();
+        this.players = new HashSet<>();
+        this.seekerChances = new HashMap<>();
         this.state = ArenaState.WAITING;
         this.maxPlayers = plugin.getConfigManager().getMaxPlayersPerArena();
         this.countdown = 30;
@@ -127,12 +127,12 @@ public class Arena {
     }
 
     private void updateActionBars() {
+        if (state != ArenaState.WAITING && state != ArenaState.STARTING) return;
         for (Player player : players) {
             Double chance = seekerChances.get(player);
             if (chance != null) {
                 int seekerPercent = (int) (chance * 100);
                 int hiderPercent = 100 - seekerPercent;
-
                 String message = "§cProcurador: " + seekerPercent + "% §8| §aEscondedor: " + hiderPercent + "%";
                 MessageUtils.sendActionBar(player, message);
             }
@@ -163,6 +163,7 @@ public class Arena {
                     MessageUtils.broadcastToArena(Arena.this, plugin.getConfigManager().getMessage("game.countdown")
                             .replace("{time}", String.valueOf(countdown)));
                 }
+                updateActionBars();
                 countdown--;
             }
         }, 0L, 20L);
@@ -180,12 +181,18 @@ public class Arena {
             if (plugin.getScoreboardManager() != null) {
                 plugin.getScoreboardManager().updateWaitingScoreboard(this);
             }
+            updateActionBars();
             return;
         }
 
         state = ArenaState.INGAME;
         if (plugin.getScoreboardManager() != null) {
             plugin.getScoreboardManager().updateWaitingScoreboard(this);
+        }
+        if (plugin.getScoreboardManager() != null) {
+            for (Player p : players) {
+                plugin.getScoreboardManager().setGameScoreboard(p, null);
+            }
         }
         currentGame = new Game(plugin, this);
         currentGame.start();
@@ -209,7 +216,7 @@ public class Arena {
     }
 
     public void cleanup() {
-        for (Player player : new HashSet<Player>(players)) {
+        for (Player player : new HashSet<>(players)) {
             plugin.getArenaManager().sendToMainLobby(player);
         }
         reset();
@@ -225,9 +232,9 @@ public class Arena {
 
     public Set<Player> getWaitingPlayers() {
         if (state == ArenaState.WAITING || state == ArenaState.STARTING) {
-            return new HashSet<Player>(players);
+            return new HashSet<>(players);
         }
-        return new HashSet<Player>();
+        return new HashSet<>();
     }
 
     public String getId() {
@@ -239,7 +246,7 @@ public class Arena {
     }
 
     public Set<Player> getPlayers() {
-        return new HashSet<Player>(players);
+        return new HashSet<>(players);
     }
 
     public ArenaState getState() {

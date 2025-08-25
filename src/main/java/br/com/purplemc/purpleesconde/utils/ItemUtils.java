@@ -1,16 +1,31 @@
 package br.com.purplemc.purpleesconde.utils;
 
+import br.com.purplemc.purpleesconde.PurpleEsconde;
+import br.com.purplemc.purpleesconde.arena.Arena;
+import br.com.purplemc.purpleesconde.game.Game;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
-public class ItemUtils {
+public class ItemUtils implements Listener {
+
+    private static Plugin pluginInstance;
+
+    public static void init(Plugin plugin) {
+        pluginInstance = plugin;
+        plugin.getServer().getPluginManager().registerEvents(new ItemUtils(), plugin);
+    }
 
     public static ItemStack createItem(Material material, String displayName, List<String> lore) {
         ItemStack item = new ItemStack(material);
@@ -107,13 +122,11 @@ public class ItemUtils {
 
     public static ItemStack getSeekerWeapon() {
         ItemStack weapon = new ItemStack(Material.STICK);
-        weapon.addUnsafeEnchantment(Enchantment.FIRE_ASPECT, 1);
-        weapon.addUnsafeEnchantment(Enchantment.KNOCKBACK, 1);
-        weapon.addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 2);
         ItemMeta meta = weapon.getItemMeta();
         meta.setDisplayName("§cBastão do Procurador");
         meta.setLore(Arrays.asList("§7Arma especial do procurador"));
         weapon.setItemMeta(meta);
+        weapon.addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 10);
         return weapon;
     }
 
@@ -123,11 +136,19 @@ public class ItemUtils {
         meta.setDisplayName("§aBastão do Escondedor");
         meta.setLore(Arrays.asList("§7Para se defender"));
         weapon.setItemMeta(meta);
+        weapon.addUnsafeEnchantment(Enchantment.KNOCKBACK, 1);
         return weapon;
     }
 
     public static ItemStack getFirework() {
-        return createItem(Material.FIREWORK, "§eFogos de Artifício", Arrays.asList("§7Use para criar distrações!"));
+        ItemStack firework = createItem(Material.FIREWORK, "§eFogos de Artifício", Arrays.asList("§7Use para criar distrações!"));
+        firework.setAmount(64);
+        return firework;
+    }
+
+    public static void giveHiderFireworks(Player player) {
+        ItemStack fireworks = getFirework();
+        player.getInventory().addItem(fireworks);
     }
 
     public static ItemStack getLobbyJoinItem() {
@@ -156,5 +177,39 @@ public class ItemUtils {
                         displayName.contains("Teleporte de Espectador") ||
                         displayName.contains("Voltar")
         );
+    }
+
+    @EventHandler
+    public void onHiderFireworkUse(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        ItemStack item = event.getItem();
+        if (item == null || item.getType() != Material.FIREWORK) return;
+        if (!player.isOnline() || !player.isValid()) return;
+        if (pluginInstance instanceof PurpleEsconde) {
+            PurpleEsconde plugin = (PurpleEsconde) pluginInstance;
+            Arena arena = plugin.getArenaManager().getPlayerArena(player);
+            if (arena == null || arena.getGame() == null) return;
+            Game game = arena.getGame();
+            game.handleFireworkUse(player);
+        }
+        BukkitRunnable removeItem = new BukkitRunnable() {
+            @Override
+            public void run() {
+                ItemStack[] contents = player.getInventory().getContents();
+                for (int i = 0; i < contents.length; i++) {
+                    ItemStack slot = contents[i];
+                    if (slot != null && slot.getType() == Material.FIREWORK) {
+                        if (slot.getAmount() > 1) {
+                            slot.setAmount(slot.getAmount() - 1);
+                        } else {
+                            contents[i] = null;
+                        }
+                        break;
+                    }
+                }
+                player.getInventory().setContents(contents);
+            }
+        };
+        removeItem.runTaskLater(pluginInstance, 1L);
     }
 }

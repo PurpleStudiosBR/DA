@@ -33,6 +33,8 @@ public class PlayerListener implements Listener {
         Player player = event.getPlayer();
         if (plugin.getArenaManager().isPlayerInArena(player)) {
             plugin.getArenaManager().removePlayerFromArena(player);
+        } else {
+            plugin.getScoreboardManager().removePlayerScoreboard(player);
         }
     }
 
@@ -50,9 +52,9 @@ public class PlayerListener implements Listener {
             if (displayName.contains("Sair da partida")) {
                 if (plugin.getArenaManager().isPlayerInArena(player)) {
                     plugin.getArenaManager().removePlayerFromArena(player);
-                } else {
-                    plugin.getArenaManager().sendToMainLobby(player);
                 }
+                plugin.getArenaManager().sendToMainLobby(player);
+                plugin.getScoreboardManager().setLobbyScoreboard(player);
                 player.sendMessage("§cVocê saiu da partida!");
                 return;
             }

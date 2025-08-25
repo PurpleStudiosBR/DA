@@ -26,12 +26,11 @@ public class GUIManager implements Listener {
 
     private final PurpleEsconde plugin;
     private final Map<UUID, Long> lastClickTime;
-    private final Set<UUID> openInventories;
+    private final Set<UUID> openInventories = Collections.synchronizedSet(new HashSet<>());
 
     public GUIManager(PurpleEsconde plugin) {
         this.plugin = plugin;
         this.lastClickTime = new HashMap<>();
-        this.openInventories = new HashSet<>();
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
@@ -51,107 +50,107 @@ public class GUIManager implements Listener {
     }
 
     public void openMapSelector(Player player) {
-        List<GameMap> maps = plugin.getMapManager().getMaps();
-        Inventory inv = Bukkit.createInventory(null, 54, "§8Selecionar mapa - Modo Solo");
-        int[] slots = {
-                10, 11, 12, 13, 14, 15, 16,
-                19, 20, 21, 22, 23, 24, 25,
-                28, 29, 30, 31, 32, 33, 34,
-                37, 38, 39, 40, 41, 42, 43
-        };
-        int mapIndex = 0;
-        for (int slot : slots) {
-            if (mapIndex >= maps.size()) break;
-            GameMap map = maps.get(mapIndex);
-            boolean isFavorite = plugin.getMapManager().isPlayerFavorite(player, map.getName());
-            Material material = isFavorite ? Material.MAP : Material.EMPTY_MAP;
-            ItemStack item = new ItemStack(material);
-            ItemMeta meta = item.getItemMeta();
-            meta.setDisplayName("§e" + map.getName());
-            List<String> lore = new ArrayList<>();
-            lore.add("§7Salas disponíveis: §a" + getAvailableRooms(map));
-            lore.add("§7Em espera: §a" + getWaitingPlayers(map));
-            lore.add("§7Jogando: §c" + getPlayingPlayers(map));
-            lore.add("");
-            if (isFavorite) {
-                lore.add("§6★ Mapa Favorito");
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            List<GameMap> maps = plugin.getMapManager().getMaps();
+            Inventory inv = Bukkit.createInventory(null, 54, "§8Selecionar mapa - Modo Solo");
+            int[] slots = {
+                    10, 11, 12, 13, 14, 15, 16,
+                    19, 20, 21, 22, 23, 24, 25,
+                    28, 29, 30, 31, 32, 33, 34,
+                    37, 38, 39, 40, 41, 42, 43
+            };
+            int mapIndex = 0;
+            for (int slot : slots) {
+                if (mapIndex >= maps.size()) break;
+                GameMap map = maps.get(mapIndex);
+                boolean isFavorite = plugin.getMapManager().isPlayerFavorite(player, map.getName());
+                Material material = isFavorite ? Material.MAP : Material.EMPTY_MAP;
+                ItemStack item = new ItemStack(material);
+                ItemMeta meta = item.getItemMeta();
+                meta.setDisplayName("§e" + map.getName());
+                List<String> lore = new ArrayList<>();
+                lore.add("§7Salas disponíveis: §a" + getAvailableRooms(map));
+                lore.add("§7Em espera: §a" + getWaitingPlayers(map));
+                lore.add("§7Jogando: §c" + getPlayingPlayers(map));
+                lore.add("");
+                if (isFavorite) {
+                    lore.add("§6★ Mapa Favorito");
+                }
+                if (plugin.getMapManager().canPlayerSelectMap(player)) {
+                    lore.add("§aClique esquerdo para jogar");
+                    if (player.hasPermission("purpleesconde.favorite"))
+                        lore.add("§eClique direito para favoritar");
+                } else {
+                    lore.add("§cVocê já selecionou um mapa hoje!");
+                }
+                meta.setLore(lore);
+                item.setItemMeta(meta);
+                inv.setItem(slot, item);
+                mapIndex++;
             }
-            if (plugin.getMapManager().canPlayerSelectMap(player)) {
-                lore.add("§aClique esquerdo para jogar");
-                if (player.hasPermission("purpleesconde.favorite"))
-                    lore.add("§eClique direito para favoritar");
-            } else {
-                lore.add("§cVocê já selecionou um mapa hoje!");
-            }
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-            inv.setItem(slot, item);
-            mapIndex++;
-        }
-        inv.setItem(48, ItemUtils.createGUIItem(Material.PAPER, "§aInformações",
-                Arrays.asList("§7Clique Direito para Favoritar um mapa", "§7Clique Esquerdo para Selecionar um mapa")));
-        inv.setItem(49, ItemUtils.createGUIItem(Material.ARROW, "§cVoltar", null));
-        inv.setItem(50, ItemUtils.createGUIItem(Material.DIAMOND, "§bMapa Favorito Aleatório",
-                Arrays.asList("§7Clique para jogar em um", "§7mapa favorito aleatório")));
-        player.openInventory(inv);
-        openInventories.add(player.getUniqueId());
+            inv.setItem(48, ItemUtils.createGUIItem(Material.PAPER, "§aInformações",
+                    Arrays.asList("§7Clique Direito para Favoritar um mapa", "§7Clique Esquerdo para Selecionar um mapa")));
+            inv.setItem(49, ItemUtils.createGUIItem(Material.ARROW, "§cVoltar", null));
+            inv.setItem(50, ItemUtils.createGUIItem(Material.DIAMOND, "§bMapa Favorito Aleatório",
+                    Arrays.asList("§7Clique para jogar em um", "§7mapa favorito aleatório")));
+            player.openInventory(inv);
+            openInventories.add(player.getUniqueId());
+        });
     }
 
     public void openMainMenu(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 27, "§8Esconde Esconde");
-        inv.setItem(12, ItemUtils.createGUIItem(Material.ENDER_PEARL, "§aPartida Rápida", Collections.singletonList("§7Clique para entrar em uma partida.")));
-        inv.setItem(14, ItemUtils.createGUIItem(Material.SIGN, "§eSelecionar Mapa", Collections.singletonList("§7Clique para escolher um mapa.")));
-        player.openInventory(inv);
-        openInventories.add(player.getUniqueId());
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Inventory inv = Bukkit.createInventory(null, 27, "§8Esconde Esconde");
+            inv.setItem(12, ItemUtils.createGUIItem(Material.ENDER_PEARL, "§aPartida Rápida", Collections.singletonList("§7Clique para entrar em uma partida.")));
+            inv.setItem(14, ItemUtils.createGUIItem(Material.SIGN, "§eSelecionar Mapa", Collections.singletonList("§7Clique para escolher um mapa.")));
+            player.openInventory(inv);
+            openInventories.add(player.getUniqueId());
+        });
     }
 
     public void openGameMapInfo(Player player, String mapName) {
-        GameMap map = plugin.getMapManager().getMap(mapName);
-        if (map == null) return;
-        Inventory inv = Bukkit.createInventory(null, 27, "§8" + mapName + " - Modo Padrão");
-        ItemStack mapItem = new ItemStack(Material.MAP);
-        ItemMeta meta = mapItem.getItemMeta();
-        meta.setDisplayName("§e" + mapName);
-        List<String> lore = new ArrayList<>();
-        lore.add("§7Modo Padrão");
-        lore.add("");
-        lore.add("§7Salas disponíveis: §a" + getAvailableRooms(map));
-        lore.add("");
-        lore.add("§aClique para Jogar");
-        meta.setLore(lore);
-        mapItem.setItemMeta(meta);
-        inv.setItem(13, mapItem);
-        inv.setItem(18, ItemUtils.createGUIItem(Material.ARROW, "§cVoltar", null));
-        player.openInventory(inv);
-        openInventories.add(player.getUniqueId());
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            GameMap map = plugin.getMapManager().getMap(mapName);
+            if (map == null) return;
+            Inventory inv = Bukkit.createInventory(null, 27, "§8" + mapName + " - Modo Padrão");
+            ItemStack mapItem = new ItemStack(Material.MAP);
+            ItemMeta meta = mapItem.getItemMeta();
+            meta.setDisplayName("§e" + mapName);
+            List<String> lore = new ArrayList<>();
+            lore.add("§7Modo Padrão");
+            lore.add("");
+            lore.add("§7Salas disponíveis: §a" + getAvailableRooms(map));
+            lore.add("");
+            lore.add("§aClique para Jogar");
+            meta.setLore(lore);
+            mapItem.setItemMeta(meta);
+            inv.setItem(13, mapItem);
+            inv.setItem(18, ItemUtils.createGUIItem(Material.ARROW, "§cVoltar", null));
+            player.openInventory(inv);
+            openInventories.add(player.getUniqueId());
+        });
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
         Player player = (Player) event.getWhoClicked();
         String title = event.getView().getTitle();
-
         boolean isMapSelector = title.equals("§8Selecionar mapa - Modo Solo");
         boolean isMainMenu = title.equals("§8Esconde Esconde");
         boolean isGameMapInfo = title.contains(" - Modo Padrão") && !title.startsWith("§8Selecionar");
-
         if (!(isMapSelector || isMainMenu || isGameMapInfo)) return;
         event.setCancelled(true);
-
         if (event.getClickedInventory() == null || event.getClickedInventory().equals(player.getInventory())) return;
-
-        long currentTime = System.currentTimeMillis();
         UUID playerUUID = player.getUniqueId();
+        long currentTime = System.currentTimeMillis();
         long lastClick = lastClickTime.getOrDefault(playerUUID, 0L);
-        if ((currentTime - lastClick) < 500) {
+        if ((currentTime - lastClick) < 250) {
             return;
         }
         lastClickTime.put(playerUUID, currentTime);
-
         ItemStack item = event.getCurrentItem();
         if (item == null || item.getType() == Material.AIR) return;
-
         if (isMapSelector) {
             handleMapSelectorClick(player, item, event.getClick(), event.getRawSlot());
         } else if (isMainMenu) {

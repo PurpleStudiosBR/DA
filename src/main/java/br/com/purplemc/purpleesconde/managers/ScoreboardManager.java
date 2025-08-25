@@ -26,55 +26,39 @@ public class ScoreboardManager {
     }
 
     public void setLobbyScoreboard(Player player) {
-        List<String> lines = plugin.getConfigManager().getScoreboardLines("lobby");
-        String title = plugin.getConfigManager().getScoreboardTitle("lobby");
-        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-        Objective obj = scoreboard.registerNewObjective("lobby", "dummy");
-        obj.setDisplayName(colorize(title != null ? title : "§aLobby"));
-        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
-
-        int score = lines.size();
-        usedBlankLines.clear();
-        for (String line : lines) {
-            String processedLine = colorize(applyAllPlaceholders(player, replaceLobbyPlaceholders(player, line)));
-            processedLine = fixBlankLine(processedLine, score);
-            obj.getScore(processedLine).setScore(score--);
-        }
-        player.setScoreboard(scoreboard);
-        playerScoreboards.put(player, scoreboard);
+        displayScoreboard(player, "lobby", null, null);
     }
 
     public void setWaitingLobbyScoreboard(Player player, Arena arena) {
-        List<String> lines = plugin.getConfigManager().getScoreboardLines("waiting");
-        String title = plugin.getConfigManager().getScoreboardTitle("waiting");
-        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-        Objective obj = scoreboard.registerNewObjective("waiting", "dummy");
-        obj.setDisplayName(colorize(title != null ? title : "§aWaiting"));
-        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
-
-        int score = lines.size();
-        usedBlankLines.clear();
-        for (String line : lines) {
-            String processedLine = colorize(applyAllPlaceholders(player, replaceWaitingPlaceholders(player, arena, line)));
-            processedLine = fixBlankLine(processedLine, score);
-            obj.getScore(processedLine).setScore(score--);
-        }
-        player.setScoreboard(scoreboard);
-        playerScoreboards.put(player, scoreboard);
+        displayScoreboard(player, "waiting", arena, null);
     }
 
     public void setGameScoreboard(Player player, Game game) {
-        List<String> lines = plugin.getConfigManager().getScoreboardLines("game");
-        String title = plugin.getConfigManager().getScoreboardTitle("game");
+        displayScoreboard(player, "game", null, game);
+    }
+
+    private void displayScoreboard(Player player, String type, Arena arena, Game game) {
+        List<String> lines = plugin.getConfigManager().getScoreboardLines(type);
+        String title = plugin.getConfigManager().getScoreboardTitle(type);
         Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-        Objective obj = scoreboard.registerNewObjective("game", "dummy");
-        obj.setDisplayName(colorize(title != null ? title : "§aGame"));
+        Objective obj = scoreboard.registerNewObjective(type, "dummy");
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+        obj.setDisplayName(colorize(title != null ? title : "§aScore"));
 
         int score = lines.size();
         usedBlankLines.clear();
         for (String line : lines) {
-            String processedLine = colorize(applyAllPlaceholders(player, replaceGamePlaceholders(player, game, line)));
+            String processedLine = line;
+
+            if (type.equals("lobby")) {
+                processedLine = replaceLobbyPlaceholders(player, processedLine);
+            } else if (type.equals("waiting") && arena != null) {
+                processedLine = replaceWaitingPlaceholders(player, arena, processedLine);
+            } else if (type.equals("game") && game != null) {
+                processedLine = replaceGamePlaceholders(player, game, processedLine);
+            }
+
+            processedLine = applyAllPlaceholders(player, colorize(processedLine));
             processedLine = fixBlankLine(processedLine, score);
             obj.getScore(processedLine).setScore(score--);
         }
@@ -100,14 +84,27 @@ public class ScoreboardManager {
     }
 
     private String replaceLobbyPlaceholders(Player player, String line) {
-        int wins = plugin.getDatabaseManager().getWins(player.getUniqueId());
-        int losses = plugin.getDatabaseManager().getLosses(player.getUniqueId());
-        int games = plugin.getDatabaseManager().getGames(player.getUniqueId());
-        int level = plugin.getLevelManager().getPlayerLevel(player);
-        int kills = plugin.getLevelManager().getPlayerKills(player);
-        String levelDisplay = plugin.getLevelManager().getLevelDisplay(player);
-        String progressBar = plugin.getLevelManager().getProgressBar(player);
-        String xp = plugin.getLevelManager().getXPInfo(player);
+        int wins = 0;
+        int losses = 0;
+        int games = 0;
+        int level = 0;
+        int kills = 0;
+        String levelDisplay = "";
+        String progressBar = "";
+        String xp = "";
+
+        if (plugin.getDatabaseManager() != null) {
+            wins = plugin.getDatabaseManager().getWins(player.getUniqueId());
+            losses = plugin.getDatabaseManager().getLosses(player.getUniqueId());
+            games = plugin.getDatabaseManager().getGames(player.getUniqueId());
+        }
+        if (plugin.getLevelManager() != null) {
+            level = plugin.getLevelManager().getPlayerLevel(player);
+            kills = plugin.getLevelManager().getPlayerKills(player);
+            levelDisplay = plugin.getLevelManager().getLevelDisplay(player);
+            progressBar = plugin.getLevelManager().getProgressBar(player);
+            xp = plugin.getLevelManager().getXPInfo(player);
+        }
 
         return line.replace("{wins}", String.valueOf(wins))
                 .replace("{losses}", String.valueOf(losses))
@@ -115,7 +112,12 @@ public class ScoreboardManager {
                 .replace("{level}", levelDisplay)
                 .replace("{xp_bar}", progressBar)
                 .replace("{xp}", xp)
-                .replace("{kills}", String.valueOf(kills));
+                .replace("{kills}", String.valueOf(kills))
+                .replace("{players}", String.valueOf(Bukkit.getOnlinePlayers().size()))
+                .replace("{max_players}", String.valueOf(plugin.getConfigManager().getMaxPlayersPerArena()))
+                .replace("{map}", "-")
+                .replace("{state}", "Lobby")
+                .replace("{time}", "-");
     }
 
     private String replaceWaitingPlaceholders(Player player, Arena arena, String line) {
@@ -123,13 +125,13 @@ public class ScoreboardManager {
         if (arena.getPlayers().size() < plugin.getConfigManager().getMinPlayersToStart()) {
             status = "§fStatus: §eEsperando...";
         } else if (arena.getState().name().equalsIgnoreCase("STARTING")) {
-            status = "§fStatus: §aInicia em §f" + arena.getCountdown() + "s";
+            status = "Iniciando em §f" + arena.getCountdown() + "s";
         } else {
             status = "§fStatus: §ePreparando...";
         }
         return line.replace("{map}", arena.getGameMap().getName())
                 .replace("{players}", String.valueOf(arena.getPlayers().size()))
-                .replace("{max_players}", String.valueOf(arena.getMaxPlayers()))
+                .replace("{max_players}", String.valueOf(plugin.getConfigManager().getMaxPlayersPerArena()))
                 .replace("{status}", status);
     }
 
@@ -165,14 +167,19 @@ public class ScoreboardManager {
 
     private String fixBlankLine(String line, int score) {
         if (line == null) line = "";
-        String trimmed = line.trim();
+        String trimmed = line.replace("§", "").trim();
         if (trimmed.isEmpty()) {
-            String unique = "§" + score + " ";
-            while (usedBlankLines.contains(unique)) {
-                unique = unique + " ";
+            StringBuilder sb = new StringBuilder();
+            sb.append(" ");
+            for (int i = 0; i < score; i++) {
+                sb.append(" ");
             }
-            usedBlankLines.add(unique);
-            return unique;
+            String blank = sb.toString();
+            if (usedBlankLines.contains(blank)) {
+                blank = blank + " ";
+            }
+            usedBlankLines.add(blank);
+            return blank;
         }
         return line;
     }
