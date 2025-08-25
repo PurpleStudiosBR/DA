@@ -6,6 +6,7 @@ import br.com.purplemc.purpleesconde.game.Game;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.*;
 
 import java.util.HashMap;
@@ -18,22 +19,43 @@ public class ScoreboardManager {
 
     private final PurpleEsconde plugin;
     private final Map<Player, Scoreboard> playerScoreboards;
+    private final Map<Player, BukkitTask> updateTasks;
     private final Set<String> usedBlankLines = new HashSet<>();
 
     public ScoreboardManager(PurpleEsconde plugin) {
         this.plugin = plugin;
         this.playerScoreboards = new HashMap<>();
+        this.updateTasks = new HashMap<>();
     }
 
     public void setLobbyScoreboard(Player player) {
+        // Cancelar task anterior se existir
+        cancelUpdateTask(player);
+
         displayScoreboard(player, "lobby", null, null);
+
+        // Criar task para atualizar scoreboard do lobby em tempo real
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+            @Override
+            public void run() {
+                if (player.isOnline() && plugin.getArenaManager().getPlayerArena(player) == null) {
+                    displayScoreboard(player, "lobby", null, null);
+                } else {
+                    cancelUpdateTask(player);
+                }
+            }
+        }, 40L, 40L); // A cada 2 segundos
+
+        updateTasks.put(player, task);
     }
 
     public void setWaitingLobbyScoreboard(Player player, Arena arena) {
+        cancelUpdateTask(player);
         displayScoreboard(player, "waiting", arena, null);
     }
 
     public void setGameScoreboard(Player player, Game game) {
+        cancelUpdateTask(player);
         displayScoreboard(player, "game", null, game);
     }
 
@@ -67,6 +89,7 @@ public class ScoreboardManager {
     }
 
     public void removePlayerScoreboard(Player player) {
+        cancelUpdateTask(player);
         playerScoreboards.remove(player);
         player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
     }
@@ -80,6 +103,17 @@ public class ScoreboardManager {
     public void updateGameScoreboard(Game game) {
         for (Player player : game.getArena().getPlayers()) {
             setGameScoreboard(player, game);
+        }
+    }
+
+    private void cancelUpdateTask(Player player) {
+        BukkitTask task = updateTasks.remove(player);
+        if (task != null) {
+            try {
+                task.cancel();
+            } catch (IllegalStateException e) {
+                // Task já foi cancelada, ignorar
+            }
         }
     }
 
@@ -155,7 +189,12 @@ public class ScoreboardManager {
     private String applyAllPlaceholders(Player player, String text) {
         String replaced = text;
         if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
-            replaced = PlaceholderAPI.setPlaceholders(player, replaced);
+            try {
+                replaced = PlaceholderAPI.setPlaceholders(player, replaced);
+            } catch (Exception e) {
+                // Fallback se PlaceholderAPI não estiver disponível
+                plugin.getLogger().warning("Erro ao aplicar placeholders: " + e.getMessage());
+            }
         }
         return replaced;
     }

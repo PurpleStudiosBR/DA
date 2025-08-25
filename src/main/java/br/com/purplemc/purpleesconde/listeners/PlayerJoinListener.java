@@ -19,6 +19,7 @@ public class PlayerJoinListener implements Listener {
         Player player = event.getPlayer();
 
         plugin.getLevelManager().initializePlayer(player);
+        plugin.getCosmeticManager().initializePlayer(player); // INICIALIZAR COSMÉTICOS
         plugin.getArenaManager().sendToMainLobby(player);
         plugin.getScoreboardManager().setLobbyScoreboard(player);
     }

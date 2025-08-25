@@ -2,6 +2,7 @@ package br.com.purplemc.purpleesconde.listeners;
 
 import br.com.purplemc.purpleesconde.PurpleEsconde;
 import br.com.purplemc.purpleesconde.arena.Arena;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -24,6 +25,20 @@ public class PlayerDeathListener implements Listener {
             event.setDeathMessage(null);
             event.setDroppedExp(0);
             event.getDrops().clear();
+
+            // Respawn automático sem tela de morte
+            Bukkit.getScheduler().runTaskLater(plugin, new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        player.spigot().respawn();
+                    } catch (Exception e) {
+                        // Fallback caso spigot().respawn() não funcione
+                        player.setHealth(20.0);
+                        player.teleport(arena.getGameMap().getWaitingLobby());
+                    }
+                }
+            }, 1L);
 
             arena.getGame().onPlayerDeath(player);
         }

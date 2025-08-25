@@ -44,7 +44,9 @@ public class DatabaseManager {
         UUID uuid = player.getUniqueId();
         int wins = getWins(uuid) + 1;
         playerConfig.set("players." + uuid + ".wins", wins);
-        addGame(uuid);
+
+        // Contar partida apenas aqui para vencedores
+        addGamePlayed(uuid);
         save();
     }
 
@@ -52,14 +54,18 @@ public class DatabaseManager {
         UUID uuid = player.getUniqueId();
         int losses = getLosses(uuid) + 1;
         playerConfig.set("players." + uuid + ".losses", losses);
-        addGame(uuid);
+
+        // Contar partida apenas aqui para perdedores
+        addGamePlayed(uuid);
         save();
     }
 
-    public void addGame(UUID uuid) {
+    private void addGamePlayed(UUID uuid) {
         int games = getGames(uuid) + 1;
         playerConfig.set("players." + uuid + ".games", games);
     }
+
+    // Removido o método addGame() público para evitar chamadas duplicadas
 
     public int getWins(UUID uuid) {
         return playerConfig.getInt("players." + uuid + ".wins", 0);

@@ -32,6 +32,25 @@ public class PlayerInteractListener implements Listener {
         Action action = event.getAction();
         if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
 
+        // Controle de durabilidade - não deixar itens perderem durabilidade durante o jogo
+        Arena arena = plugin.getArenaManager().getPlayerArena(player);
+        if (arena != null && arena.getGame() != null) {
+            if (item.getType().getMaxDurability() > 0) {
+                // Cancelar perda de durabilidade para itens duráveis durante o jogo
+                event.setCancelled(true);
+
+                // Permitir uso de fireworks
+                if (item.getType() == Material.FIREWORK) {
+                    Game game = arena.getGame();
+                    if (game.isHider(player) || game.isSeeker(player)) {
+                        // Não cancelar para fireworks, deixar o ItemUtils tratar
+                        event.setCancelled(false);
+                    }
+                }
+                return;
+            }
+        }
+
         event.setCancelled(true);
 
         if (item.getType() == Material.ENDER_PEARL) {
@@ -45,7 +64,6 @@ public class PlayerInteractListener implements Listener {
                 plugin.getArenaManager().sendToMainLobby(player);
             }
         } else if (item.getType() == Material.FIREWORK) {
-            Arena arena = plugin.getArenaManager().getPlayerArena(player);
             if (arena != null && arena.getGame() != null) {
                 Game game = arena.getGame();
                 if (game.isHider(player) || game.isSeeker(player)) {

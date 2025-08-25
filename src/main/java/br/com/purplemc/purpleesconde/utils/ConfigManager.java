@@ -1,6 +1,7 @@
 package br.com.purplemc.purpleesconde.utils;
 
 import br.com.purplemc.purpleesconde.PurpleEsconde;
+import br.com.purplemc.purpleesconde.utils.ItemUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -31,19 +32,29 @@ public class ConfigManager {
     }
 
     private void loadConfigs() {
-        plugin.saveDefaultConfig();
-        config = plugin.getConfig();
-        createConfigFile("messages.yml");
-        createConfigFile("maps.yml");
-        createConfigFile("players.yml");
-        createConfigFile("scoreboards.yml");
-        messages = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "messages.yml"));
-        maps = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "maps.yml"));
-        players = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "players.yml"));
-        scoreboards = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "scoreboards.yml"));
-        loadMainLobby();
-        loadMessages();
-        setupDefaultConfigs();
+        try {
+            plugin.saveDefaultConfig();
+            config = plugin.getConfig();
+
+            createConfigFile("messages.yml");
+            createConfigFile("maps.yml");
+            createConfigFile("players.yml");
+            createConfigFile("scoreboards.yml");
+
+            messages = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "messages.yml"));
+            maps = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "maps.yml"));
+            players = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "players.yml"));
+            scoreboards = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "scoreboards.yml"));
+
+            loadMainLobby();
+            loadMessages();
+            setupDefaultConfigs();
+
+            plugin.getLogger().info("Configurações carregadas com sucesso!");
+        } catch (Exception e) {
+            plugin.getLogger().severe("Erro ao carregar configurações: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void createConfigFile(String fileName) {
@@ -51,9 +62,11 @@ public class ConfigManager {
         if (!file.exists()) {
             try {
                 plugin.saveResource(fileName, false);
+                plugin.getLogger().info("Arquivo " + fileName + " criado com sucesso!");
             } catch (Exception e) {
                 try {
                     file.createNewFile();
+                    plugin.getLogger().info("Arquivo " + fileName + " criado (vazio).");
                 } catch (IOException ex) {
                     plugin.getLogger().severe("Erro ao criar arquivo " + fileName + ": " + ex.getMessage());
                 }
@@ -62,15 +75,26 @@ public class ConfigManager {
     }
 
     private void setupDefaultConfigs() {
+        boolean saveMessages = false;
+        boolean saveConfig = false;
+        boolean saveScoreboards = false;
+
         if (!messages.contains("messages")) {
             setupDefaultMessages();
+            saveMessages = true;
         }
         if (!config.contains("settings")) {
             setupDefaultSettings();
+            saveConfig = true;
         }
         if (!scoreboards.contains("scoreboard")) {
             setupDefaultScoreboards();
+            saveScoreboards = true;
         }
+
+        if (saveMessages) saveConfig(messages, "messages.yml");
+        if (saveConfig) plugin.saveConfig();
+        if (saveScoreboards) saveConfig(scoreboards, "scoreboards.yml");
     }
 
     private void setupDefaultMessages() {
@@ -99,12 +123,13 @@ public class ConfigManager {
         messages.set("messages.game.countdown-cancelled", "§cContagem regressiva cancelada! Jogadores insuficientes.");
         messages.set("messages.map.favorite-added", "§aMapa §e{map} §aadicionado aos favoritos!");
         messages.set("messages.map.favorite-removed", "§cMapa §e{map} §cremovido dos favoritos!");
+        messages.set("messages.map.daily-limit", "§cVocê já selecionou um mapa hoje!");
         messages.set("messages.spectator.enabled", "§7Modo espectador ativado!");
         messages.set("messages.spectator.disabled", "§7Modo espectador desativado!");
         messages.set("messages.spectator.chat-format", "§7[SPEC] {player}: §f{message}");
         messages.set("messages.level.level-up", "§6§l✦ LEVEL UP! §fVocê alcançou o nível §6{level}§f!");
         messages.set("messages.level.xp-gained", "§a+{xp} XP");
-        saveConfig(messages, "messages.yml");
+        messages.set("messages.commands.blocked", "§cComandos bloqueados durante a partida!");
     }
 
     private void setupDefaultSettings() {
@@ -113,7 +138,7 @@ public class ConfigManager {
         config.set("settings.game-duration", 600);
         config.set("settings.hiding-time", 30);
         config.set("settings.lobby-items", true);
-        config.set("settings.allowed-commands", Arrays.asList("/msg", "/tell", "/r"));
+        config.set("settings.allowed-commands", Arrays.asList("/msg", "/tell", "/r", "/reply"));
         config.set("settings.barrier-material", "BARRIER");
         config.set("settings.barrier-height", 10);
         config.set("database.type", "yaml");
@@ -123,34 +148,57 @@ public class ConfigManager {
         config.set("database.username", "root");
         config.set("database.password", "");
         config.set("database.table", "players");
-        plugin.saveConfig();
     }
 
     private void setupDefaultScoreboards() {
-        List<String> waitingLines = Arrays.asList(
-                "§7Jogadores: §a{players}/{max}",
-                "§7Mapa: §e{map}",
+        // Scoreboard do lobby
+        List<String> lobbyLines = Arrays.asList(
                 "",
-                "§7Estado: §e{state}",
-                "§7Tempo: §a{time}",
+                "&fSeu nível: {level}",
+                " {xp_bar}",
                 "",
-                "§7purple.mc"
+                "&eEstatísticas:",
+                " &fVitórias: &a{wins}",
+                " &fDerrotas: &c{losses}",
+                " &fAbates: &e{kills}",
+                " &fPartidas: &b{games}",
+                "",
+                "&6Coins: &e{coins}",
+                "",
+                "&epurplemc.net"
         );
-        scoreboards.set("scoreboard.waiting.title", "§6§lEsconde Esconde");
+        scoreboards.set("scoreboard.lobby.title", "§b§lESCONDE ESCONDE");
+        scoreboards.set("scoreboard.lobby.lines", lobbyLines);
+
+        // Scoreboard de espera
+        List<String> waitingLines = Arrays.asList(
+                "",
+                "§fMapa: §a{map}",
+                "§fJogadores: §a{players}/{max_players}",
+                "",
+                "{status}",
+                "",
+                "§epurplemc.net"
+        );
+        scoreboards.set("scoreboard.waiting.title", "§b§lESCONDE ESCONDE");
         scoreboards.set("scoreboard.waiting.lines", waitingLines);
 
+        // Scoreboard do jogo
         List<String> gameLines = Arrays.asList(
-                "§7Procuradores: §c{seekers}",
-                "§7Escondedores: §a{hiders}",
                 "",
-                "§7Tempo: §e{time}",
-                "§7Mapa: §b{map}",
+                "&fTempo: &a{tempo}",
                 "",
-                "§7purple.mc"
+                "&fProcuradores:",
+                "&c{seekers}",
+                "&fEscondedores:",
+                "&a{hiders}",
+                "",
+                "&fMapa: &b{map}",
+                "",
+                "&epurplemc.net"
         );
-        scoreboards.set("scoreboard.game.title", "§6§lEsconde Esconde");
+        scoreboards.set("scoreboard.game.title", "§b§lESCONDE ESCONDE");
         scoreboards.set("scoreboard.game.lines", gameLines);
-        saveConfig(scoreboards, "scoreboards.yml");
     }
 
     private void loadMainLobby() {
@@ -163,7 +211,12 @@ public class ConfigManager {
             float pitch = (float) config.getDouble("lobby.pitch");
             if (Bukkit.getWorld(world) != null) {
                 mainLobby = new Location(Bukkit.getWorld(world), x, y, z, yaw, pitch);
+                plugin.getLogger().info("Lobby principal carregado: " + world);
+            } else {
+                plugin.getLogger().warning("Mundo do lobby não encontrado: " + world);
             }
+        } else {
+            plugin.getLogger().warning("Lobby principal não configurado!");
         }
     }
 
@@ -176,6 +229,7 @@ public class ConfigManager {
                     messageCache.put(key, value.replace("&", "§"));
                 }
             }
+            plugin.getLogger().info("Mensagens carregadas: " + messageCache.size());
         }
     }
 
@@ -212,6 +266,7 @@ public class ConfigManager {
         config.set("lobby.yaw", location.getYaw());
         config.set("lobby.pitch", location.getPitch());
         plugin.saveConfig();
+        plugin.getLogger().info("Lobby principal definido em: " + location.getWorld().getName());
     }
 
     public Location getMainLobby() {
@@ -244,20 +299,38 @@ public class ConfigManager {
 
     public void giveLobbyItems(Player player) {
         if (!giveLobbyItems()) return;
-        player.getInventory().clear();
-        ItemStack enderPearl = ItemUtils.createItem(Material.ENDER_PEARL, "§aJogar Esconde-Esconde",
-                Arrays.asList("§7Clique para entrar em uma partida!"));
-        ItemStack sign = ItemUtils.createItem(Material.SIGN, "§eSelecionar Mapa",
-                Arrays.asList("§7Escolha seu mapa favorito!"));
-        player.getInventory().setItem(4, enderPearl);
-        player.getInventory().setItem(6, sign);
-        player.updateInventory();
+
+        try {
+            player.getInventory().clear();
+
+            // Itens do lobby com cosmético incluído
+            ItemStack enderPearl = ItemUtils.createItem(Material.ENDER_PEARL, "§aJogar Esconde-Esconde",
+                    Arrays.asList("§7Clique para entrar em uma partida!"));
+            ItemStack sign = ItemUtils.createItem(Material.SIGN, "§eSelecionar Mapa",
+                    Arrays.asList("§7Escolha seu mapa favorito!"));
+            ItemStack cosmetic = ItemUtils.createItem(Material.NETHER_STAR, "§dLoja de Cosméticos",
+                    Arrays.asList("§7Personalize sua aparência!",
+                            "§7Compre cosméticos com suas moedas!",
+                            "§eClique para abrir a loja"));
+
+            player.getInventory().setItem(4, enderPearl);
+            player.getInventory().setItem(5, cosmetic);  // ITEM DE COSMÉTICO
+            player.getInventory().setItem(6, sign);
+
+            player.updateInventory();
+        } catch (Exception e) {
+            plugin.getLogger().warning("Erro ao dar itens do lobby para " + player.getName() + ": " + e.getMessage());
+        }
     }
 
     public void giveWaitingLobbyItems(Player player) {
-        player.getInventory().clear();
-        player.getInventory().setItem(8, ItemUtils.getWaitingBed());
-        player.updateInventory();
+        try {
+            player.getInventory().clear();
+            player.getInventory().setItem(8, ItemUtils.getWaitingBed());
+            player.updateInventory();
+        } catch (Exception e) {
+            plugin.getLogger().warning("Erro ao dar itens de espera para " + player.getName() + ": " + e.getMessage());
+        }
     }
 
     public FileConfiguration getConfig() {
@@ -297,19 +370,26 @@ public class ConfigManager {
     public void saveConfig(FileConfiguration config, String fileName) {
         try {
             config.save(new File(plugin.getDataFolder(), fileName));
+            plugin.getLogger().info("Arquivo " + fileName + " salvo com sucesso!");
         } catch (IOException e) {
             plugin.getLogger().severe("Erro ao salvar " + fileName + ": " + e.getMessage());
         }
     }
 
     public void reloadConfigs() {
-        plugin.reloadConfig();
-        config = plugin.getConfig();
-        messages = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "messages.yml"));
-        maps = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "maps.yml"));
-        players = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "players.yml"));
-        scoreboards = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "scoreboards.yml"));
-        loadMainLobby();
-        loadMessages();
+        try {
+            plugin.reloadConfig();
+            config = plugin.getConfig();
+            messages = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "messages.yml"));
+            maps = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "maps.yml"));
+            players = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "players.yml"));
+            scoreboards = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "scoreboards.yml"));
+            loadMainLobby();
+            loadMessages();
+            plugin.getLogger().info("Configurações recarregadas com sucesso!");
+        } catch (Exception e) {
+            plugin.getLogger().severe("Erro ao recarregar configurações: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

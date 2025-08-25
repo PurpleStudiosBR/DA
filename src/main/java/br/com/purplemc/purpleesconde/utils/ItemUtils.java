@@ -14,7 +14,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 
@@ -141,14 +140,10 @@ public class ItemUtils implements Listener {
     }
 
     public static ItemStack getFirework() {
-        ItemStack firework = createItem(Material.FIREWORK, "§eFogos de Artifício", Arrays.asList("§7Use para criar distrações!"));
+        ItemStack firework = createItem(Material.FIREWORK, "§eFogos de Artifício",
+                Arrays.asList("§7Use para criar distrações!", "§c⏰ 30 segundos de cooldown"));
         firework.setAmount(64);
         return firework;
-    }
-
-    public static void giveHiderFireworks(Player player) {
-        ItemStack fireworks = getFirework();
-        player.getInventory().addItem(fireworks);
     }
 
     public static ItemStack getLobbyJoinItem() {
@@ -175,7 +170,8 @@ public class ItemUtils implements Listener {
                         displayName.contains("Jogar Esconde-Esconde") ||
                         displayName.contains("Selecionar Mapa") ||
                         displayName.contains("Teleporte de Espectador") ||
-                        displayName.contains("Voltar")
+                        displayName.contains("Voltar") ||
+                        displayName.contains("Cosméticos")
         );
     }
 
@@ -185,31 +181,16 @@ public class ItemUtils implements Listener {
         ItemStack item = event.getItem();
         if (item == null || item.getType() != Material.FIREWORK) return;
         if (!player.isOnline() || !player.isValid()) return;
+
         if (pluginInstance instanceof PurpleEsconde) {
             PurpleEsconde plugin = (PurpleEsconde) pluginInstance;
             Arena arena = plugin.getArenaManager().getPlayerArena(player);
             if (arena == null || arena.getGame() == null) return;
+
             Game game = arena.getGame();
+
+            // Verificar cooldown através do Game
             game.handleFireworkUse(player);
         }
-        BukkitRunnable removeItem = new BukkitRunnable() {
-            @Override
-            public void run() {
-                ItemStack[] contents = player.getInventory().getContents();
-                for (int i = 0; i < contents.length; i++) {
-                    ItemStack slot = contents[i];
-                    if (slot != null && slot.getType() == Material.FIREWORK) {
-                        if (slot.getAmount() > 1) {
-                            slot.setAmount(slot.getAmount() - 1);
-                        } else {
-                            contents[i] = null;
-                        }
-                        break;
-                    }
-                }
-                player.getInventory().setContents(contents);
-            }
-        };
-        removeItem.runTaskLater(pluginInstance, 1L);
     }
 }

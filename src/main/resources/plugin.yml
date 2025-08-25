@@ -21,6 +21,11 @@ commands:
     description: Comando de construção
     usage: /<command> build
     permission: purpleesconde.admin
+  cosmetic:
+    description: Abrir menu de cosméticos
+    usage: /<command> [cosmetic_name]
+    permission: purpleesconde.cosmetic
+    aliases: [cosmeticos, skin]
 
 permissions:
   purpleesconde.admin:
@@ -38,3 +43,9 @@ permissions:
   purpleesconde.bypass-commands:
     description: Permissão para usar comandos durante partidas
     default: op
+  # PERMISSÕES DE COSMÉTICOS
+  purpleesconde.cosmetic:
+    description: Usar cosméticos básicos
+    default: true
+  purpleesconde.cosmetic.gold:
+    description: Cosmético doura

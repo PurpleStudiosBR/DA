@@ -1,6 +1,7 @@
 package br.com.purplemc.purpleesconde.listeners;
 
 import br.com.purplemc.purpleesconde.PurpleEsconde;
+import br.com.purplemc.purpleesconde.arena.Arena;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -19,7 +20,9 @@ public class PlayerCommandListener implements Listener {
         Player player = event.getPlayer();
         String command = event.getMessage().toLowerCase();
 
-        if (plugin.getArenaManager().isPlayerInArena(player)) {
+        // Só bloquear comandos se o jogador estiver em uma arena, não no lobby principal
+        Arena arena = plugin.getArenaManager().getPlayerArena(player);
+        if (arena != null) {
             if (player.hasPermission("purpleesconde.bypass-commands")) {
                 return;
             }
@@ -37,5 +40,6 @@ public class PlayerCommandListener implements Listener {
                 player.sendMessage(plugin.getConfigManager().getMessage("commands.blocked"));
             }
         }
+        // Se não estiver em arena (lobby principal), não bloquear nenhum comando
     }
 }
